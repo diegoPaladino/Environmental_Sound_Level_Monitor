@@ -1,0 +1,46 @@
+import pyaudio
+import numpy as np
+import pandas as pd
+import time
+
+FORMAT = pyaudio.paInt16  # Formato de áudio (16 bits)
+CHANNELS = 1              # Mono, altere para 2 se for estéreo
+RATE = 44100              # Taxa de amostragem
+CHUNK = 1024              # Tamanho do chunk de áudio
+RECORD_SECONDS = 60       # Duração da gravação de cada segmento (1 minuto)
+
+audio = pyaudio.PyAudio()
+
+# Iniciar gravação
+stream = audio.open(format=FORMAT, channels=CHANNELS,
+                    rate=RATE, input=True,
+                    frames_per_buffer=CHUNK)
+
+print("Gravando...")
+
+db_values = []  # Lista para armazenar valores médios de dB
+
+# Loop de gravação e cálculo
+for _ in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
+    data = np.fromstring(stream.read(CHUNK), dtype=np.int16)
+    # Calculando o nível de dB
+    peak = np.average(np.abs(data)) * 2
+    db = 20 * np.log10(peak)
+    db_values.append(db)
+
+# Parar gravação
+stream.stop_stream()
+stream.close()
+audio.terminate()
+
+print("Gravação finalizada.")
+
+# Calculando a média de dB por minuto
+db_average = np.mean(db_values)
+
+# Salvando os dados
+timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+df = pd.DataFrame({"Timestamp": [timestamp], "Average_dB": [db_average]})
+df.to_csv("sound_data.csv", index=False)
+
+print(f"Média de dB gravada: {db_average}")
